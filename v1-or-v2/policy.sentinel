@@ -1,0 +1,56 @@
+import "tfplan/v2" as tfplan
+import "strings"
+
+main = rule {
+  prevent_database_connection_removal()
+}
+
+prevent_database_connection_removal = func() {
+  valid = true
+
+  found_resources = find_resources_from_plan("vault_database_secret_backend_connection") else {}
+  for found_resources as address, r {
+    if r.destroy {
+      print("You are trying to destroy a database connection:", address)
+      print("This will force a replacement of the entire secrets engine on the *next* terraform run.")
+      print("For safety, this change is not permitted to be applied without manual approval.")
+      print("You must override this policy to apply the changes, and then IMMEDIATELY manually update the statefile to set the 'engine_count' on the corresponding vault_database_secrets_mount attribute to reflect this deletion.")
+      print("Failure to do so WILL cause an outage that's painful to repair")
+      valid = false
+    }
+  }
+
+  return valid
+}
+
+## https://github.com/hashicorp/terraform-guides/blob/master/governance/second-generation/common-functions/plan/find_resources_from_plan.sentinel
+# Find all resources of a specific type from all modules using the tfplan import
+find_resources_from_plan = func(type) {
+
+  resources = {}
+
+  # Iterate over all modules in the tfplan import
+  for tfplan.module_paths as path {
+    # Iterate over the named resources of desired type in the module
+    for tfplan.module(path).resources[type] else {} as name, instances {
+      # Iterate over resource instances
+      for instances as index, r {
+
+        # Get the address of the instance
+        if length(path) == 0 {
+          # root module
+          address = type + "." + name + "[" + string(index) + "]"
+        } else {
+          # non-root module
+          address = "module." + strings.join(path, ".module.") + "." +
+                    type + "." + name + "[" + string(index) + "]"
+        }
+
+        # Add the instance to resources map, setting the key to the address
+        resources[address] = r
+      }
+    }
+  }
+
+  return resources
+}
