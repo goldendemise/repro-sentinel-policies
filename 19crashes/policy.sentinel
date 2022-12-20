@@ -30,3 +30,7 @@ find_resources_from_plan = func(type) {
 
   return resources
 }
+
+main = rule {
+  true
+}

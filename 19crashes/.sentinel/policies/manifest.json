@@ -1,0 +1,10 @@
+{
+	"records": [
+		{
+			"key": "db-connection-policy",
+			"source": "./policy.sentinel",
+			"sourceSum": "",
+			"dest": "/home/sean/sentinel/repro-sentinel-polices/19crashes/policy.sentinel"
+		}
+	]
+}
