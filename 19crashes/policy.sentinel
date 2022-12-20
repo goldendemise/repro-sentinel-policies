@@ -1,0 +1,32 @@
+import "tfplan/v2" as tfplan
+
+prevent_database_connection_removal = func() {
+  valid = true
+
+  found_resources = find_resources_from_plan("vault_database_secret_backend_connection") else {}
+  for found_resources as address, r {
+    if r.change.actions contains "destroy" {
+      print("You are trying to destroy a database connection:", address)
+      print("This will force a replacement of the entire secrets engine on the *next* terraform run.")
+      print("For safety, this change is not permitted to be applied without manual approval.")
+      print("You must override this policy to apply the changes, and then IMMEDIATELY manually update the statefile to set the 'engine_count' on the corresponding vault_database_secrets_mount attribute to reflect this deletion.")
+      print("Failure to do so WILL cause an outage that's painful to repair")
+      valid = false
+    }
+  }
+
+  return valid
+}
+
+### find_resources ###
+# Find all resources of a specific type using the tfplan/v2 import.
+# Include resources that are not being permanently deleted.
+# Technically, this returns a map of resource changes.
+find_resources_from_plan = func(type) {
+  resources = filter tfplan.resource_changes as address, rc {
+        rc.type is type and
+        rc.mode is "managed"
+  }
+
+  return resources
+}
